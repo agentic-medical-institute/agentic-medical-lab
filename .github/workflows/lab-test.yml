@@ -1,0 +1,40 @@
+name: Remote Medic Audit
+on:
+  pull_request:
+    paths:
+      - 'pending_audits/**'
+
+jobs:
+  call-medic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Send Manifest to Private API
+        id: medic_call
+        run: |
+          # Grabs the content of the JSON file the agent just uploaded
+          MANIFEST_CONTENT=$(cat pending_audits/*.json)
+          
+          # Sends it to your Cloudflare Worker URL
+          RESPONSE=$(curl -s -X POST https://api.agentic-wiki.com \
+            -H "Content-Type: text/plain" \
+            -d "$MANIFEST_CONTENT")
+          
+          # Save the diagnosis for the next step
+          echo "DIAGNOSIS=$(echo $RESPONSE | jq -r '.diagnosis')" >> $GITHUB_ENV
+          echo "STATUS=$(echo $RESPONSE | jq -r '.status')" >> $GITHUB_ENV
+
+      - name: Post Results as PR Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = process.env.STATUS === 'SECURE' ? '✅ SECURE' : '❌ VULNERABLE';
+            const body = `### 🏥 AMI Medical Report: ${status}\n\n**Diagnosis:** ${process.env.DIAGNOSIS}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
