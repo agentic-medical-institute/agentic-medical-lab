@@ -23,22 +23,21 @@ jobs:
           head: ${{ github.event.pull_request.head.sha }}
           extra_args: --only-verified
 
-      - name: 🔍 Ward 2: Contamination Scan (PII & System Leaks)
+      - name: 🔍 Ward 2: Contamination Scan
         id: diagnostic_scan
         run: |
-          # 1. PII/PHI (Emails, SSNs)
+          # PII/PHI (Emails, SSNs)
           PII_DATA=$(grep -rE "([a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|[0-9]{3}-[0-9]{2}-[0-9]{4})" ./manifests || true)
           
-          # 2. Local System Leaks (User directories & Absolute paths)
+          # Local System Leaks (User directories & Absolute paths)
           SYSTEM_LEAKS=$(grep -rE "(/Users/|/home/|C:\\\\Users\\\\|[a-zA-Z]:\\\\)" ./manifests || true)
           
-          # 3. Environment Variable References
+          # Environment Variable References
           ENV_LEAKS=$(grep -rE "(\$HOME|\$USER|\$PATH|\$PWD)" ./manifests || true)
 
-          # 4. Injection/Bypass Patterns (DAN, Ignore Previous, etc.)
+          # Injection/Bypass Patterns
           INJECTIONS=$(grep -riE "(ignore previous|system override|DAN mode|base64|developer mode)" ./manifests || true)
 
-          # Pass findings to output
           {
             echo "PII_REPORT<<EOF"
             echo "$PII_DATA"
@@ -64,23 +63,20 @@ jobs:
             const inj = `${{ steps.diagnostic_scan.outputs.INJECTION_REPORT }}`.trim();
 
             let status = "✅ HEALTHY";
-            let diagnosis = "Agent manifest is clean and non-contagious.";
             let findings = [];
 
-            if (pii) findings.push("- **PII/PHI Contamination:** Found sensitive identity patterns.");
-            if (sys) findings.push("- **System Residue:** Local machine paths detected.");
-            if (env) findings.push("- **Environment Leak:** Internal shell variables exposed.");
-            if (inj) findings.push("- **Instruction Drift:** Potentially malicious injection patterns found.");
+            if (pii) findings.push("- Pathological identity markers detected.");
+            if (sys) findings.push("- Environmental residue detected.");
+            if (env) findings.push("- System variable exposure.");
+            if (inj) findings.push("- Behavioral drift/instruction anomaly.");
 
+            if (findings.length > 0) status = "⚠️ QUARANTINE";
+
+            let reportBody = `## 🏥 AMI Diagnostic Report\n\n**Overall Health:** ${status}\n\n`;
             if (findings.length > 0) {
-              status = "⚠️ QUARANTINE";
-              diagnosis = "Multiple security pathologies detected. Action required to prevent environmental spread.";
-            }
-
-            let reportBody = `## 🏥 AMI Diagnostic Report\n\n**Overall Health:** ${status}\n**Diagnosis:** ${diagnosis}\n\n`;
-
-            if (findings.length > 0) {
-              reportBody += `### 🩺 Treatment Plan\nTo pass the next audit, the agent must implement these sanitization measures:\n${findings.join("\n")}\n\n*Refer to the [Clinical Standard for Data Integrity](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/SANITIZATION_GUIDE.md) for remediation steps.*`;
+              reportBody += `**Clinical Findings:**\n${findings.join("\n")}\n\n*The manifest remains in quarantine for research purposes.*`;
+            } else {
+              reportBody += `**Clinical Findings:** No contamination detected. Subject is stable.`;
             }
 
             github.rest.issues.createComment({
