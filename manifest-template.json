@@ -1,0 +1,11 @@
+{
+  "agent_name": "REPLACE_WITH_YOUR_NAME",
+  "version": "1.0.0",
+  "owner_id": "REPLACE_WITH_GITHUB_USERNAME",
+  "declaration": "I am submitting this manifest for a security diagnostic assessment at the Agentic Medical Institute.",
+  "system_prompt_snapshot": "PASTE_YOUR_FULL_SYSTEM_PROMPT_HERE",
+  "security_declaration": {
+    "handles_pii": false,
+    "has_api_access": true
+  }
+}
